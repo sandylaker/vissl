@@ -1,7 +1,7 @@
 # @package _global_
 config:
   VERBOSE: False
-  LOG_FREQUENCY: 200
+  LOG_FREQUENCY: 40
   TEST_ONLY: False
   TEST_MODEL: False
   SEED_VALUE: 0
@@ -12,24 +12,24 @@ config:
       ROLLING_BTIME_FREQ: 313
     TENSORBOARD_SETUP:
         USE_TENSORBOARD: True
-        EXPERIMENT_LOG_DIR: "workdirs/debug/"
+        EXPERIMENT_LOG_DIR: "workdirs/b4_ssl"
         LOG_PARAMS: False
-        FLUSH_EVERY_N_MIN: 20
+        FLUSH_EVERY_N_MIN: 5
   DATA:
     NUM_DATALOADER_WORKERS: 5
     TRAIN:
-      DATA_SOURCES: [disk_folder, disk_folder]
-      DATASET_NAMES: [imagenet1k_folder, imagenet1k_folder]
-      DATASET_PATHS: ["data/derma_datasets/train/", "data/derma_datasets/val/"]
-      LABEL_SOURCES: [disk_folder, disk_folder]
-      LABEL_PATHS: ["data/derma_datasets/train/", "data/derma_datasets/val/"]
-      BATCHSIZE_PER_REPLICA: 32
+      DATA_SOURCES: [disk_folder]
+      DATASET_NAMES: [imagenet1k_folder]
+      DATA_PATHS: ["data/derma_datasets/train/"]
+      LABEL_SOURCES: [disk_folder]
+      LABEL_PATHS: ["data/derma_datasets/train/"]
+      BATCHSIZE_PER_REPLICA: 64
       LABEL_TYPE: sample_index    # just an implementation detail. Label isn't used
       TRANSFORMS:
         - name: ImgReplicatePil
           num_times: 2
         - name: RandomResizedCrop
-          size: 224
+          size: 380
         - name: ImgPilColorDistortion
           strength: 0.5
         - name: ImgPilGaussianBlur
@@ -53,21 +53,19 @@ config:
     name: ""
   MODEL:
     TRUNK:
-      NAME: resnet
-      RESNETS:
-        DEPTH: 50
-        ZERO_INIT_RESIDUAL: True
+      NAME: timm_efficientnet
+      EFFICIENT_NETS:
+        model_name: efficientnet_b4
     HEAD:
       PARAMS: [
-        ["mlp", {"dims": [2048, 2048], "use_relu": True, "skip_last_layer_relu_bn": False}],
+        ["mlp", {"dims": [1792, 2048], "use_relu": True, "skip_last_layer_relu_bn": False}],
         ["mlp", {"dims": [2048, 128]}],
       ]
     SYNC_BN_CONFIG:
-      CONVERT_BN_TO_SYNC_BN: True
-      SYNC_BN_TYPE: "pytorch"
+      CONVERT_BN_TO_SYNC_BN: False
     AMP_PARAMS:
       USE_AMP: True
-      AMP_TYPE: "pytorch"
+      AMP_TYPE: "apex"
   LOSS:
       name: moco_loss
       moco_loss:
@@ -81,14 +79,14 @@ config:
       weight_decay: 0.0001
       momentum: 0.9
       nesterov: True
-      num_epochs: 200
+      num_epochs: 1200
       regularize_bn: True
       regularize_bias: True
       param_schedulers:
         lr:
           name: multistep
-          values: [0.03, 0.003, 0.0003]
-          milestones: [120, 160]
+          values: [0.02, 0.002, 0.0002]
+          milestones: [720, 960]
           update_interval: epoch
   DISTRIBUTED:
     BACKEND: nccl
@@ -99,6 +97,8 @@ config:
   MACHINE:
     DEVICE: gpu
   CHECKPOINT:
+    DIR: "workdirs/b4_ssl/"
     AUTO_RESUME: True
-    CHECKPOINT_FREQUENCY: 5
+    CHECKPOINT_FREQUENCY: 20
     CHECKPOINT_ITER_FREQUENCY: -1  # set this variable to checkpoint every few iterations
+    OVERWRITE_EXISTING: True
